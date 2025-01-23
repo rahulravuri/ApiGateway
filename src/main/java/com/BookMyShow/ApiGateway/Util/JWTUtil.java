@@ -1,7 +1,6 @@
 package com.BookMyShow.ApiGateway.Util;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.*;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
@@ -31,10 +30,22 @@ public class JWTUtil {
 
     public  Claims parseJwt(String jwtToken, PublicKey PublicKey) {
         // You need to pass the public/private key depending on your JWT signing mechanism
+        try {
         return Jwts.parser()
                 .verifyWith(PublicKey)
                 .build()
                 .parseSignedClaims(jwtToken)
                 .getPayload();
+        } catch (ExpiredJwtException e) {
+            throw new RuntimeException("Token is expired", e);
+        } catch (UnsupportedJwtException e) {
+            throw new RuntimeException("Unsupported JWT", e);
+        } catch (MalformedJwtException e) {
+            throw new RuntimeException("Malformed JWT", e);
+        } catch (SignatureException e) {
+            throw new RuntimeException("Invalid signature", e);
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Token is null or empty", e);
+        }
     }
 }

@@ -36,19 +36,18 @@ public class AuthFilter implements GatewayFilter {
                 ? exchange.getRequest().getCookies().getFirst("Bearer").getValue()
                 : null;
 
-        if (token == null) {
-            System.out.println("hey you");
-            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-            return exchange.getResponse().setComplete();
-        }
-        return userService.validateToken(token, PublicKey)
-                .flatMap(isValid -> {
-                    if (isValid.equals(false)) {
-                        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-                        return exchange.getResponse().setComplete();
-                    }
-                    // Continue processing the request if authentication is valid
-                    return chain.filter(exchange);
+        return Mono.fromCallable(() -> KeyUtil.parseJwt(token, PublicKey))
+                .flatMap(claims -> {
+                    String user = claims.get("user", String.class);
+                    String roles = claims.get("role", String.class);
+                    exchange.getRequest().mutate()
+                            .header("X-User", user)
+                            .header("X-User-Roles", roles)
+                            .build();
+                    return chain.filter(exchange);})
+                .onErrorResume(e -> {
+                    // Handle invalid token error
+                    return Mono.error(new Exception("Invalid token: " + e.getMessage()));
                 });
 
     }
